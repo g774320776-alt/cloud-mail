@@ -16,33 +16,15 @@ jobs:
           API=https://api.cloudflare.com/client/v4/accounts/$A/workers/scripts/jd
           VID=$(curl -sS -H "Authorization: Bearer $T" "$API/versions" | jq -r '.result.items[] | select(.id|startswith("0c9a93ea")) | .id')
           echo "vid=$VID" > out.txt
-          for u in "$API/content/v2?version=$VID" "$API/content/v2?version_id=$VID" "$API/versions/$VID/content" "$API/versions/$VID/content/v2"; do
+          for u in "$API/versions/$VID/content"; do
             code=$(curl -sS -o r.bin -w "%{http_code}" -H "Authorization: Bearer $T" "$u")
             t=$(grep -ao '终端 v[0-9.]*' r.bin | sort -u | tr '\n' ' ')
             echo "$code $t $(wc -c < r.bin) ${u#$API}" >> out.txt
             if [ "$code" = 200 ] && echo "$t" | grep -q "v3.0" && [ ! -f good.bin ]; then cp r.bin good.bin; cp r.bin /dev/null; fi
           done
-          if [ -f good.bin ]; then
-            python3 - <<'PY' >> out.txt
-          import email, sys
-          raw=open('good.bin','rb').read()
-          b=raw.split(b'\r\n',1)[0]
-          msg=email.message_from_bytes(b'Content-Type: multipart/form-data; boundary='+b[2:]+b'\r\n\r\n'+raw)
-          parts=[]
-          for p in msg.walk():
-              if p.is_multipart(): continue
-              n=p.get_param('name',header='content-disposition'); fn=p.get_filename() or n
-              open('part_'+fn,'wb').write(p.get_payload(decode=True)); parts.append((fn,p.get_content_type()))
-          print('parts',parts)
-          open('parts.txt','w').write('\n'.join(f"{a}|{b}" for a,b in parts))
-          PY
-            MAIN=$(head -1 parts.txt | cut -d'|' -f1)
-            ARGS=(-F "metadata={\"main_module\":\"$MAIN\"};type=application/json")
-            while IFS='|' read -r fn ct; do ARGS+=(-F "$fn=@part_$fn;filename=$fn;type=$ct"); done < parts.txt
-            curl -sS -X PUT -H "Authorization: Bearer $T" "$API/content" "${ARGS[@]}" | jq -c '{success, errors}' >> out.txt
-            sleep 15
-            echo "site $(curl -s -o /dev/null -w '%{http_code}' https://1.774320776.dpdns.org/)" >> out.txt
-          fi
+          curl -sS -H "Authorization: Bearer $T" "$API/versions/$VID/content" | head -c 1100 | tr -cd '[:print:]\n' >> out.txt
+          echo >> out.txt
+          curl -sS -H "Authorization: Bearer $T" "$API/versions/$VID" | jq -c '.result.resources.script, .result.resources.script_runtime' | head -c 800 >> out.txt
           cat out.txt
       - env:
           GH_TOKEN: ${{ github.token }}
