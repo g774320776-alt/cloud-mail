@@ -1,0 +1,16 @@
+name: diag-cf
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    env:
+      T: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+      A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - run: |
+          H="Authorization: Bearer $T"; B=https://api.cloudflare.com/client/v4
+          echo "== scripts"; curl -s -H "$H" $B/accounts/$A/workers/scripts | jq -c '.success, .errors, [.result[]?|{id,modified_on}]'
+          echo "== domains"; curl -s -H "$H" $B/accounts/$A/workers/domains | jq -c '.success, .errors, [.result[]?|{hostname,service}]'
+          echo "== zones"; curl -s -H "$H" "$B/zones?per_page=50" | jq -c '[.result[]?|{name,status,id}]'
+          for Z in $(curl -s -H "$H" "$B/zones?per_page=50" | jq -r '.result[]?.id'); do echo "== dns $Z"; curl -s -H "$H" "$B/zones/$Z/dns_records?per_page=100" | jq -c '[.result[]?|{name,type,content,proxied}]'; done
+          echo "== subdomain"; curl -s -H "$H" $B/accounts/$A/workers/subdomain | jq -c .
