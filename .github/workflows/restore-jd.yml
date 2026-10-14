@@ -1,0 +1,32 @@
+name: ♻️ Restore jd code
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      T: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+      A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - run: |
+          API=https://api.cloudflare.com/client/v4/accounts/$A/workers/scripts/jd
+          curl -sS -D h.txt -H "Authorization: Bearer $T" "$API/content/v2" -o orig.bin
+          CT=$(grep -i '^content-type' h.txt | tr -d '\r')
+          echo "$CT"; ls -l orig.bin; head -c 300 orig.bin | tr -cd '[:print:]\n' ; echo
+          {
+          echo "ct=$CT size=$(wc -c < orig.bin) head=$(head -c 120 orig.bin | tr -cd '[:print:]' )"
+          echo "has_title=$(grep -o '终端 v[0-9.]*' orig.bin | sort -u | tr '\n' ' ')"
+          echo "dash_default_uuid=$(grep -c 351c9981 orig.bin)"
+          } > out.txt
+          cat out.txt
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q d && cp out.txt d/ && cd d
+          git config user.email a@b.c && git config user.name bot
+          git add out.txt && git commit -qm diag
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:refs/heads/diag
