@@ -1,0 +1,25 @@
+name: diag-mail
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          H="Authorization: Bearer $T"; B=https://api.cloudflare.com/client/v4
+          Z=$(curl -s -H "$H" "$B/zones?name=774320776.dpdns.org" | jq -r '.result[0].id')
+          {
+          echo "== settings"; curl -s -H "$H" "$B/zones/$Z/email/routing" | jq -c '{s:.success,e:.errors,r:(.result|{enabled,status})}'
+          echo "== rules"; curl -s -H "$H" "$B/zones/$Z/email/routing/rules" | jq -c '{s:.success,e:.errors,r:[.result[]?|{id,enabled,matchers,actions}]}'
+          echo "== catchall"; curl -s -H "$H" "$B/zones/$Z/email/routing/rules/catch_all" | jq -c '{s:.success,e:.errors,r:(.result|{enabled,matchers,actions})}'
+          echo "== fix catchall"; curl -s -X PUT -H "$H" -H "Content-Type: application/json" "$B/zones/$Z/email/routing/rules/catch_all" -d '{"enabled":true,"matchers":[{"type":"all"}],"actions":[{"type":"worker","value":["cloud-mail"]}]}' | jq -c '{s:.success,e:.errors}'
+          echo "== d1"; DB=$(curl -s -H "$H" "$B/accounts/$A/d1/database?name=cloud-mail" | jq -r '.result[0]|.uuid+" "+.created_at'); echo $DB
+          U=${DB%% *}
+          curl -s -X POST -H "$H" -H "Content-Type: application/json" "$B/accounts/$A/d1/database/$U/query" -d '{"sql":"select (select count(*) from user) as users,(select count(*) from email) as emails"}' | jq -c '{s:.success,e:.errors,r:.result[0].results}'
+          } > out.txt 2>&1
+          git init -q o && cd o && git checkout -q -b diag-out && cp ../out.txt . && git add . && git -c user.name=a -c user.email=a@a commit -qm o && git push -qf https://x:$GH@github.com/${{ github.repository }} diag-out
