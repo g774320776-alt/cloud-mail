@@ -6,6 +6,8 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     env:
       T: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
       A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -20,7 +22,6 @@ jobs:
           MSG="settings=$B versions=$V deployments=$D http=$H"
           echo "$MSG"
           echo "$MSG" > out.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: out
-          path: out.txt
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create -R ${{ github.repository }} -t "jd inspect" -F out.txt
