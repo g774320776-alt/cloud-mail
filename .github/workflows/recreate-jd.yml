@@ -1,0 +1,51 @@
+name: ♻️ Recreate jd Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      u:
+        description: uuid
+        required: true
+
+jobs:
+  recreate:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Deploy
+        run: |
+          set -e
+          U=$(jq -r .inputs.u "$GITHUB_EVENT_PATH"); echo "::add-mask::$U"
+          mkdir g && cd g
+          curl -fsSL "https://raw.githubusercontent.com/g774320776-alt/guang/main/%E6%98%8E%E6%96%87%E6%BA%90%E5%90%97" -o worker.js
+          grep -q "终端 v3.0" worker.js
+          npm i wrangler@4 --silent
+          ID=$(npx wrangler kv namespace list | jq -r '.[] | select(.title == "jd") | .id')
+          if [ -z "$ID" ]; then npx wrangler kv namespace create jd >/dev/null; ID=$(npx wrangler kv namespace list | jq -r '.[] | select(.title == "jd") | .id'); fi
+          [ -n "$ID" ]
+          cat > wrangler.toml <<TOML
+          name = "jd"
+          main = "worker.js"
+          compatibility_date = "2026-10-02"
+          workers_dev = false
+          preview_urls = false
+
+          [vars]
+          u = "$U"
+
+          [[kv_namespaces]]
+          binding = "c"
+          id = "$ID"
+
+          [[routes]]
+          pattern = "1.774320776.dpdns.org"
+          custom_domain = true
+          TOML
+          npx wrangler deploy 2>&1 | grep -v -e "workers.dev" -e "$U"
+          sleep 20
+          curl -s -o /dev/null -w "site HTTP %{http_code}\n" https://1.774320776.dpdns.org/
