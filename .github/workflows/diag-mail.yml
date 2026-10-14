@@ -1,0 +1,19 @@
+name: diag-mail
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          H="Authorization: Bearer $T"; B=https://api.cloudflare.com/client/v4
+          {
+          curl -s -X POST -H "$H" -H "Content-Type: application/json" "$B/zones" -d "{\"name\":\"774320776.ccwu.cc\",\"account\":{\"id\":\"$A\"},\"type\":\"full\"}" | jq -c '{s:.success,e:.errors,r:(.result|{id,status,name_servers})}'
+          curl -s -H "$H" "$B/zones?name=774320776.ccwu.cc" | jq -c '[.result[]?|{id,status,name_servers}]'
+          } > out.txt 2>&1
+          git init -q o && cd o && git checkout -q -b diag-out && cp ../out.txt . && git add . && git -c user.name=a -c user.email=a@a commit -qm o && git push -qf https://x:$GH@github.com/${{ github.repository }} diag-out
