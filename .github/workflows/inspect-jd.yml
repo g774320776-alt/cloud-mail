@@ -7,7 +7,7 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
+      contents: write
     env:
       T: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
       A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -24,4 +24,8 @@ jobs:
           echo "$MSG" > out.txt
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh issue create -R ${{ github.repository }} -t "jd inspect" -F out.txt
+        run: |
+          git init -q d && cp out.txt d/ && cd d
+          git config user.email a@b.c && git config user.name bot
+          git add out.txt && git commit -qm diag
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:refs/heads/diag
