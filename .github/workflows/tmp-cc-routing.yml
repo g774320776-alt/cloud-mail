@@ -1,0 +1,28 @@
+name: tmp cc.cd email routing
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  r:
+    runs-on: ubuntu-latest
+    env:
+      T: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          A="https://api.cloudflare.com/client/v4"
+          H=(-H "Authorization: Bearer $T" -H "Content-Type: application/json")
+          f(){ jq -c '{success, errors, r: (.result|if type=="object" then {id,name,status,enabled,actions,matchers,account:(.account.id? // null)} else . end)}' 2>/dev/null; }
+          {
+          echo "## zone"; Z=$(curl -s "${H[@]}" "$A/zones?name=774320776.cc.cd"); echo "$Z" | jq -c '{success,errors,r:[.result[]|{id,name,status,acct:.account.id}]}'
+          ZID=$(echo "$Z" | jq -r '.result[0].id // empty')
+          if [ -n "$ZID" ]; then
+            echo "## routing before"; curl -s "${H[@]}" "$A/zones/$ZID/email/routing" | f
+            echo "## enable"; curl -s -X POST "${H[@]}" "$A/zones/$ZID/email/routing/enable" -d '{}' | f
+            echo "## dns"; curl -s -X POST "${H[@]}" "$A/zones/$ZID/email/routing/dns" -d '{}' | jq -c '{success,errors}'
+            echo "## catchall"; curl -s -X PUT "${H[@]}" "$A/zones/$ZID/email/routing/rules/catch_all" -d '{"actions":[{"type":"worker","value":["cloud-mail"]}],"matchers":[{"type":"all"}],"enabled":true,"name":"catch-all"}' | f
+            echo "## routing after"; curl -s "${H[@]}" "$A/zones/$ZID/email/routing" | f
+          fi
+          } > tmp-cc-result.txt 2>&1
+          git config user.name bot; git config user.email bot@users.noreply.github.com
+          git add tmp-cc-result.txt; git commit -m tmp-result; git push
