@@ -1,0 +1,12 @@
+## zone
+{"success":true,"errors":[],"r":[{"id":"3ef424e2ddfbf3662dbd9855a810e8c0","name":"774320776.cc.cd","status":"active","acct":"c6d8a95275a5a1b5ca60bd4fbe6c9758"}]}
+## routing before
+{"success":true,"errors":[],"r":{"id":"3ef424e2ddfbf3662dbd9855a810e8c0","name":"774320776.cc.cd","status":"unconfigured","enabled":false,"actions":null,"matchers":null,"account":null}}
+## enable
+{"success":true,"errors":[],"r":{"id":"3ef424e2ddfbf3662dbd9855a810e8c0","name":"774320776.cc.cd","status":"ready","enabled":true,"actions":null,"matchers":null,"account":null}}
+## dns
+{"success":true,"errors":[]}
+## catchall
+{"success":true,"errors":[],"r":{"id":"a329a2f808664d298fb2392700792e55","name":"catch-all","status":null,"enabled":true,"actions":[{"type":"worker","value":["cloud-mail"]}],"matchers":[{"type":"all"}],"account":null}}
+## routing after
+{"success":true,"errors":[],"r":{"id":"3ef424e2ddfbf3662dbd9855a810e8c0","name":"774320776.cc.cd","status":"ready","enabled":true,"actions":null,"matchers":null,"account":null}}
