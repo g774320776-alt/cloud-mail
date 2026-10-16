@@ -12,13 +12,14 @@ jobs:
       - run: |
           h="Authorization: Bearer $T"; B=https://api.cloudflare.com/client/v4
           {
-          echo "== zones"; curl -s -H "$h" "$B/zones?per_page=50" | jq -c '[.result[]?|{name,status,id,ns:.name_servers,acct:.account.id}]'
-          echo "== pages zb"; curl -s -H "$h" "$B/accounts/$A/pages/projects/zb" | jq -c '.success,.errors,.result.subdomain'
-          Z=$(curl -s -H "$h" "$B/zones?name=774320776.ccwu.cc" | jq -r '.result[0].id')
-          echo "zone $Z"
-          echo "== existing a records"; curl -s -H "$h" "$B/zones/$Z/dns_records?per_page=100" | jq -c '[.result[]?|{name,type,content,proxied}]'
-          echo "== add pages domain"; curl -s -X POST -H "$h" -H "Content-Type: application/json" "$B/accounts/$A/pages/projects/zb/domains" -d '{"name":"a.774320776.ccwu.cc"}' | jq -c '.success,.errors,.result.status'
-          echo "== add cname"; curl -s -X POST -H "$h" -H "Content-Type: application/json" "$B/zones/$Z/dns_records" -d '{"type":"CNAME","name":"a.774320776.ccwu.cc","content":"zb-cpu.pages.dev","proxied":true}' | jq -c '.success,.errors'
+          echo "== del ccwu"; curl -s -X DELETE -H "$h" "$B/accounts/$A/pages/projects/zb/domains/a.774320776.ccwu.cc" | jq -c '.success,.errors'
+          Z=992367a8c15c86cc01690654d8229eb4
+          echo "== dpdns a records"; curl -s -H "$h" "$B/zones/$Z/dns_records?name=a.774320776.dpdns.org" | jq -c '[.result[]?|{id,type,content,proxied}]'
+          echo "== add pages domain"; curl -s -X POST -H "$h" -H "Content-Type: application/json" "$B/accounts/$A/pages/projects/zb/domains" -d '{"name":"a.774320776.dpdns.org"}' | jq -c '.success,.errors,.result.status'
+          N=$(curl -s -H "$h" "$B/zones/$Z/dns_records?name=a.774320776.dpdns.org" | jq '.result|length')
+          if [ "$N" = 0 ]; then echo "== add cname"; curl -s -X POST -H "$h" -H "Content-Type: application/json" "$B/zones/$Z/dns_records" -d '{"type":"CNAME","name":"a.774320776.dpdns.org","content":"zb-cpu.pages.dev","proxied":true}' | jq -c '.success,.errors'; fi
+          sleep 30
+          echo "== domains"; curl -s -H "$h" "$B/accounts/$A/pages/projects/zb/domains" | jq -c '[.result[]?|{name,status}]'
           } > out.txt 2>&1
           git init -q o && cd o && cp ../out.txt . && git add out.txt && git -c user.name=b -c user.email=b@b commit -qm o
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/tmp-out
