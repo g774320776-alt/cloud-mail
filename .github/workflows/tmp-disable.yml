@@ -8,5 +8,5 @@ jobs:
           T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           Z=3ef424e2ddfbf3662dbd9855a810e8c0
-          curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Z/email/routing/rules/catch_all" -H "Authorization: Bearer $T" -H "Content-Type: application/json" --data '{"enabled":false,"matchers":[{"type":"all"}],"actions":[{"type":"drop"}]}' | jq -c '{success,errors,enabled:.result.enabled}'
+          curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$Z/email/routing/rules/catch_all" -H "Authorization: Bearer $T" -H "Content-Type: application/json" --data '{"enabled":false,"matchers":[{"type":"all"}],"actions":[{"type":"drop"}]}' | tee r.json; jq -e ".success==true and .result.enabled==false" r.json
           curl -s "https://api.cloudflare.com/client/v4/zones/$Z/email/routing/rules" -H "Authorization: Bearer $T" | jq -c '[.result[]|{name,enabled,actions}]'
