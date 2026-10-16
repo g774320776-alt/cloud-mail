@@ -1,0 +1,24 @@
+name: tmp-cf
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  q:
+    runs-on: ubuntu-latest
+    env:
+      T: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+      A: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - run: |
+          h="Authorization: Bearer $T"; B=https://api.cloudflare.com/client/v4
+          {
+          echo "== zones"; curl -s -H "$h" "$B/zones?per_page=50" | jq -c '[.result[]?|{name,status,id,ns:.name_servers,acct:.account.id}]'
+          echo "== pages zb"; curl -s -H "$h" "$B/accounts/$A/pages/projects/zb" | jq -c '.success,.errors,.result.subdomain'
+          Z=$(curl -s -H "$h" "$B/zones?name=774320776.ccwu.cc" | jq -r '.result[0].id')
+          echo "zone $Z"
+          echo "== existing a records"; curl -s -H "$h" "$B/zones/$Z/dns_records?per_page=100" | jq -c '[.result[]?|{name,type,content,proxied}]'
+          echo "== add pages domain"; curl -s -X POST -H "$h" -H "Content-Type: application/json" "$B/accounts/$A/pages/projects/zb/domains" -d '{"name":"a.774320776.ccwu.cc"}' | jq -c '.success,.errors,.result.status'
+          echo "== add cname"; curl -s -X POST -H "$h" -H "Content-Type: application/json" "$B/zones/$Z/dns_records" -d '{"type":"CNAME","name":"a.774320776.ccwu.cc","content":"zb-cpu.pages.dev","proxied":true}' | jq -c '.success,.errors'
+          } > out.txt 2>&1
+          git init -q o && cd o && cp ../out.txt . && git add out.txt && git -c user.name=b -c user.email=b@b commit -qm o
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/tmp-out
